@@ -1,0 +1,37 @@
+name: Update App on EC2 via SSM (OIDC)
+
+on:
+  push:
+    branches:
+      - main
+      - ci
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials (via OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+
+      - name: Run script on EC2 using SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "i-0aa1a94c68ceb01eb" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Run script as ubuntu" \
+            --parameters '{
+              "commands": [
+                "sudo -u ubuntu /home/ubuntu/activepieces/update_app.sh"
+              ]
+            }' \
+            --output json
